@@ -1,0 +1,7 @@
+# Send every page request to index.php and pass the URL as the request param
+RewriteEngine on
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+RewriteRule ^(.*)$ index.php?request=$1 [L,QSA]

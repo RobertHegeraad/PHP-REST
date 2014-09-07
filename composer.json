@@ -1,0 +1,10 @@
+{
+	"autoload": {
+		"classmap": [
+			"system"
+		]
+	},
+	"require": {
+		"guzzlehttp/guzzle": "~4"
+	}
+}
