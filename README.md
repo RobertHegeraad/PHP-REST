@@ -1,0 +1,4 @@
+REST
+====
+
+Basic REST setup
