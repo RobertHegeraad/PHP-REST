@@ -62,7 +62,7 @@ $signature = Signature::create(array(
 ));
 
 // Make the request
-// $response = $client->get('http://restwebservice.com/users/761146773916773?' . $signature);	// The signature is appened to the URL
+$response = $client->get('http://restwebservice.com/users/761146773916773?' . $signature);	// The signature is appened to the URL
 
 print_r($response->json());
 ```
