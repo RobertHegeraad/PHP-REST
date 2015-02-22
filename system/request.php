@@ -1,163 +1,130 @@
 <?php
 
-class Request
-{
-	/**
-	 * The parameters from the querystring
-	 *
-	 * @var array
-	 */
-	protected static $parameters = array();
+class Request {
 
-	/**
+	/*
 	 * @var string
 	 */
-	protected static $method = false;
+	public $method;
 
-	/**
-	 * URI segments in an array, default value is 'index' in case an empty URI is set
-	 *
-	 * @var array
-	 */
-	protected static $segments = array('index');
-
-	/**
-	 * The URI as a string
-	 *
-	 * @var string
-	 */
-	protected static $uri = false;
-
-	/**
-	 * The full URL
-	 *
-	 * @var string
-	 */
-	protected static $url = false;
-
-	/**
+	/*
 	 * The timestamp of the request
 	 *
 	 * @var int
 	 */
-	protected static $timestamp = false;
+	public $timestamp;
 
-
-
-	/** ------------------------------------------------------------------------------------------------------
-	 * Parse the URL and set all the properties containing information about the URL
+	/*
+	 * The content type for the request
+	 *
+	 * @var string
 	 */
-	public static function parse() {
+	public $content_type = 'application/x-www-form-urlencoded';
 
-		// Set the URI retrieved from the request parameter
-		if(isset($_GET['request'])) {
-			// Break up the segments at '/',
-			// decode the URI
-			// and remove any empty values
-			$segments = array_filter(explode('/', urldecode($_GET['request'])));
+	/*
+	 * The accept type for the request
+	 *
+	 * @var string
+	 */
+	public $accept = 'application/json';
 
-			// Set the URI segments array
-			self::$segments = $segments;
+	/*
+	 * Array containg the request body
+	 *
+	 * @var array
+	 */
+	public $input = array();
+
+	/*
+	 * The Url class
+	 *
+	 * @var object
+	 */
+	public $url;
+
+	/*
+	 * Whether the request was made with AJAX or not
+	 *
+	 * @var bool
+	 */
+	public $ajax = false;
 
 
-			// Set the URI string
-			self::$uri = $_GET['request'];
+	public function __construct() {
 
+		$this->url = new Url();
 
-			unset($_GET['request']);
+		$this->timestamp 	= (isset($_SERVER['REQUEST_TIME']) ? $_SERVER['REQUEST_TIME'] : false);
+		$this->accept 		= (isset($_SERVER['HTTP_ACCEPT']) ? $_SERVER['HTTP_ACCEPT'] : 'application/json');
+		$this->method 		= (isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : false);
+		$this->origin		= (isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : false);
+
+		$this->ajax = $this->isAjax();
+		
+		if($this->ajax === true) {
+			$this->content_type = 'application/json';
+		} else {
+			$this->content_type = (isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : 'application/x-www-form-urlencoded');
 		}
-	
-
-		// Set the parameters from the querystring
-		self::$parameters = array_filter($_GET);
-
-
-		// Set the request method
-		self::$method = $_SERVER['REQUEST_METHOD'];
-
-
-		// Set the full URL
-		self::$url = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-
-
-		// Set the timestamp
-		self::$timestamp = $_SERVER['REQUEST_TIME'];
-
-		return self::$uri;
 	}
 
-	/** ------------------------------------------------------------------------------------------------------
-	 * Get a specific segment from the URI
-	 *
-	 * The first segment is 1
-	 * The second segment is 2 etc
-	 *
-	 * Returns false if no segments exist
+	/*
+	 * Get the correct input depending on the Request method and the Content-Type
 	 */
-	public static function segment($index = 1) {
-		if(isset(self::$segments[$index - 1])) {
-			return self::$segments[$index - 1];
-		}
+	public function getInput() {
+		$input = [];
 
-		return false;
+		$types = Config::get('request', 'content_type');
+
+		if($types !== false) {
+			if(in_array($this->content_type, $types)) {
+				// If it was a GET request use the $_GET superglobal,
+				// same goes for a POST request with $_POST
+				// For PUT request use the PHP input stream
+				if($this->method('get')) {
+				    $input = $_GET;
+				} else if($this->method('post')) {
+					$input = $_POST;
+				    
+				    if($this->content_type == 'application/json') {
+				        $contents = file_get_contents("php://input");
+				        parse_str($contents, $input);
+
+				        // $contents = file_get_contents("php://input");
+				        // $input = json_decode($contents, true);
+				    }				    
+				} else if($this->method('put')) {
+			        $contents = file_get_contents("php://input");
+			        parse_str($contents, $input);
+				}
+
+				$this->input = $input;
+			} else {
+				Http::$response->status(400);
+			}
+		}
 	}
 
-	/** ------------------------------------------------------------------------------------------------------
-	 * Return all the URI segments in an array
+	/*
+	 * Check if the request was made with AJAX
 	 */
-	public static function segments() {
-		return self::$segments;
-	}
-
-	/** ------------------------------------------------------------------------------------------------------
-	 * Create's a querystring from an associative array
-	 *
-	 * @param array The array with the key value pairs
-	 */
-	protected static function getQuerystring($p) {
-		$query = [];
-		foreach($p as $k => $v) {
-			$query[] = $k . "=" . $v;	
-		}
-
-		return implode("&", $query);
-	}
-
-	/** ------------------------------------------------------------------------------------------------------
-	 * Get the request method or check if a specific request method was used
-	 *
-	 * @param string/bool the method to check for
-	 */
-	public static function method($method = false) {
-		if( ! $method) {
-			return self::$method;	
-		}
-
-		if(self::$method == strtoupper($method)) {
+	private function isAjax() {
+		// http://davidwalsh.name/detect-ajax
+		if(!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
 			return true;
 		}
 
 		return false;
 	}
 
-	/** ------------------------------------------------------------------------------------------------------
-	 * Get the URI
+	/*
+	 * Checks if a certain request method was used
 	 */
-	public static function uri() {
-		return self::$uri;
-	}	
+	public function method($method) {
+		if(strtolower($this->method) == strtolower($method)) {
+			return true;
+		}
 
-	/** ------------------------------------------------------------------------------------------------------
-	 * Get the full URL
-	 */
-	public static function url() {
-		return self::$url;
-	}
-
-	/** ------------------------------------------------------------------------------------------------------
-	 * Get the current timestamp
-	 */
-	protected static function timestamp() {
-		return self::$timestamp;
+		return false;
 	}
 }

@@ -6,11 +6,13 @@ $vendorDir = dirname(dirname(__FILE__));
 $baseDir = dirname($vendorDir);
 
 return array(
-    'Autoloader' => $baseDir . '/system/autoloader.php',
     'Config' => $baseDir . '/system/config.php',
     'Database' => $baseDir . '/system/database.php',
+    'Http' => $baseDir . '/system/http.php',
+    'HttpException' => $baseDir . '/system/httpexception.php',
     'Request' => $baseDir . '/system/request.php',
+    'Resource' => $baseDir . '/system/resource.php',
     'Response' => $baseDir . '/system/response.php',
-    'Signature' => $baseDir . '/system/signature.php',
-    'curl' => $baseDir . '/system/curl.php',
+    'Router' => $baseDir . '/system/router.php',
+    'Url' => $baseDir . '/system/url.php',
 );

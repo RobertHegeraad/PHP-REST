@@ -51,9 +51,13 @@ class Config
 			// Is the user requesting a specific key from the config array?
 			if($key !== FALSE) {
 				// Cache the retrieved values
-				static::$items[$file][$key] = $config[$key];
+				if(isset($config[$key])) {
+					static::$items[$file][$key] = $config[$key];
 
-                return static::$items[$file][$key];
+	                return static::$items[$file][$key];
+				}
+
+				return FALSE;
 			}
 			else {
 				// Cache the retrieved config array
