@@ -1,135 +1,142 @@
+Resource -> methods
+
+Available info from request and request url
+
+response bodies
+
+config
+
+todo -> pagination, links, slugs
+
 PHP Basic REST setup
-====
+=====
 
-## Routes
+# Resources
 
-Location: ./app/routes/
-
-The routes folder contains all your classes that can be called with a request. A GET request to 'www.restwebservice.com/users/' will call the index method in the users.php file.
-More information about route mapping can be found in the Route settings section.
-
-The methods in the route classes accept a $request object as a parameter, this object contains the following information about the request:
-the resource (in this case user), the parameter (the third part of the URI) and the sent input as an array.
-
-Here is a method example that retrieves a user from the database by the supplied ID in the URI and returns the user data as JSON with the Response class
+Resources are placed inside the ./app/version_1/resources folder. A resource must extend the Resource class.
 
 ```php
-public function show($request)
-{
-	// Get a single user by the provided ID
-	$user = Database::select("SELECT * FROM users WHERE user_id = ?", array($request->parameter), 'ASSOC');
+class Users extends Resource {
 
+	/*
+	 * GET /users
+	 */
+	public function get() { ... }
 
-	return Response::json(array('user' => $user), 200); 	// Return data with the response code 200 (OK)
+	/*
+	 * GET /users/1
+	 */
+	public function detail() { ... }
+
+	/*
+	 * POST /users
+	 */
+	public function post() { ... }
+
+	/*
+	 * PUT /users/1
+	 */
+	public function put() { ... }
+
+	/*
+	 * PATCH /users/1
+	 */
+	public function patch() { ... }
+
+	/*
+	 * DELETE /users/1
+	 */
+	public function delete() { ... }
 }
 ```
 
-## Public / Private key authentication
+Note: Methods for OPTIONS and HEAD request are part of the Request class and can't be overridden.
 
-For each request a signature must be created with the Signature class located in ./system/signature.php.
-To create a signature call the create() method and pass an array containg a public key, a private key, the resource that will be requested, the request method that will be used, the date and the parameters that will be send with the request.
+Inside a resource class you can use it's Request and Response objects.
+
+### Request
+
+The Request object contains information about the request like input and the URI
 
 ```php
-// Create a signature for the PUT request
-$signature = Signature::create(array(
-	'public_key' => '761146773916776',		// Can be a user ID for the logged in user
-	'private_key' => '02290a862b16082fd64a1a9799332d8e6cdc12050b1f2c19a367f6ee1e3c0de6',	// Normally retrieved from the database
-	'parameters' => array('name' => 'Robert'),		// The parameters that you want to send
-	'resource' => 'users',		// The resource that you want to send to
-	'method' => 'post'			// The request method that will be used
-));
+$this->request->url->id 	// Get the ID from the URI
+$this->request->input 		// Get the request body
+$this->request->ajax 		// Whether the request was made via AJAX
 ```
 
-For GET method the create() method returns a querystring with the signature, public key, timestamp and the parameters to send with the request.
-For all other request method the create method() returns an associative array containing the signature, public key, timestamp and the parameters.
-
-On the REST webservice the signature will be recreated with the sent public key and parameters aswell as the current resource from the URI and the used request method. If the signatures don't match the request is denied.
-
-## Making requests to the webservice using Guzzle
-
-Example of a GET request
+Example:
 
 ```php
-$client = new GuzzleHttp\Client();
-
-// Create a signature for the PUT request
-$signature = Signature::create(array(
-	'public_key' => '761146773916773',
-	'private_key' => '02290a862b16082fd64a1a9799332d8e6cdc12050b1f2c19a367f6ee1e3c0de6',
-	'parameters' => array('name' => 'Robert'),
-	'resource' => 'users',
-	'method' => 'get'
-));
-
-// Make the request
-$response = $client->get('http://restwebservice.com/users/761146773916773?' . $signature);	// The signature is appened to the URL
-
-print_r($response->json());
+/*
+ * GET /users/1
+ */
+public function detail() {
+	// Select user by ID
+	$user = Database::select('SELECT * FROM users WHERE id = ?', array(
+		$this->request->url->id
+	));
+}
 ```
 
-Example of a PUT request
+### Response
+
+The Response object is used to return data. You can return a Body or just a Status code.
 
 ```php
-$client = new GuzzleHttp\Client();
-
-// Create a signature for the PUT request
-$signature = Signature::create(array(
-	'public_key' => '761146773916773',
-	'private_key' => '02290a862b16082fd64a1a9799332d8e6cdc12050b1f2c19a367f6ee1e3c0de6',
-	'parameters' => array('name' => 'Robert'),
-	'resource' => 'users',
-	'method' => 'put'
-));
-
-// Make the request
-$response = $client->put('http://restwebservice.com/users/761146773916776', [
-    'body' => [
-   		$signature  // The signature is added to the body
-	]
-]);
-
-print_r($response->json());
+$this->response->body(200, $users); 	// Return the users
+$this->reponse->status(404); 			// Returns a 404 with the corresponding message
 ```
 
-## Configuration
-
-In the .app/config folder are three files to change some configuration
-
-### CORS (Cross-Origin Resource Sharing)
-
-Location: ./app/config/cors.php
-
-The allowed_domains array contains all the domains that may use the REST webservice. The origin of each request is checked with the $_SERVER['HTTP_ORIGIN'] variable.
-If the origin is not in the allowed_domains array access will be denied.
+Example:
 
 ```php
-'allowed_domains' => array(
-	'http://mywebsite.com',
-	'http://myotherwebsite.com'
-)
+/*
+ * GET /users/1
+ */
+public function get() {
+	// Select users
+	$users = Database::select('SELECT * FROM users);
+
+	// Return the users
+	$this->response->body(200, $users);
+}
 ```
 
-### Route settings
+### Options
 
-Location: ./app/config/routes.php
-
-The routes config file contains URI patterns that map to a method. So when the URI is 'users/1' and the request is PUT, the method 'update()' will be called in the users route file.
-When the URI is 'users/1/edit' and the request is also PUT, the method 'edit' is called in the users route file. This allows for easy control for different actions.
-For example you can have different functions for POSTing data and POSTing data and returning it.
+In the app/version_1/config/resources.php file you can set the available request methods for a resource. In the following example the URI users/ only allows GET, POST and OPTIONS requests. The URI users/1 allows GET, PUT, DELETE and OPTIONS requests
 
 ```php
-'GET' => array(
-	'' => 'index',
-	'{resource}' => 'show'
+'users' => array(
+	'/' => array('GET', 'POST', 'OPTIONS'),
+	'/{id}' => array('GET', 'PUT', 'DELETE', 'OPTIONS')
 ),
-'POST' => array(
-	'{resource}' => 'store'
-),
-'PUT' => array(
-	'{resource}' => 'update',
-	'{resource}/edit' => 'edit'
-),
-'DELETE' => array(
-	'{resource}' => 'destroy'
-)
 ```
+
+If the above configuration does not exist the only available request method is GET.
+
+# Versions
+
+You can easily add different versions for the API. In the ./app folder simply add a folder with the version number and prefix it with 'version_'. Next copy over the config and resources folders from the previous version. Now the settings from the config folder are only active for the version folder it is in.
+
+A version can be passed in the URL in the first segment.
+
+```html
+http://webservice.com/2/users	// 2 is the version number
+```
+
+This will search for the users resource in the ./app/version_2/resources folder.
+
+If the version number is left out of the URL it defaults to 1.
+
+```html
+http://webservice.com/users	// 1 is the version number
+```
+
+# Todo list
+
+* Resource links
+* Pagination
+* Custom methods
+* Authentication
+* Allow Origin
