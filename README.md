@@ -1,13 +1,3 @@
-Resource -> methods
-
-Available info from request and request url
-
-response bodies
-
-config
-
-todo -> pagination, links, slugs
-
 PHP Basic REST setup
 =====
 
